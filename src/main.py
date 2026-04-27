@@ -19,11 +19,13 @@ class Lattice():
             angle = float(np.random.randint(0,359))
             self.grid = np.array( [[ angle for _ in range(0, self.size)] for _ in range(0,self.size)] )
 
-        self.NumberFrames     = []
-        self.Animationframes  = []
-        self.FreeEnergy       = []
-        self.betaTempTime     = []
-        self.vortexDensity    = []
+        self.VortexNumberFrames    = []
+        self.VortexAnimationFrames = []
+        self.NumberFrames          = []
+        self.Animationframes       = []
+        self.FreeEnergy            = []
+        self.betaTempTime          = []
+        self.vortexDensity         = []
     
     def getSiteKernel(self, coordinate, inputGrid=None):
         
@@ -124,11 +126,15 @@ class Lattice():
         angleDegrees = angle * (np.pi/180)
         return np.array([np.cos(angleDegrees), np.sin(angleDegrees)])
 
-    def angle_diff(self, theta2, theta1):
+    def angleDiff(self, theta2, theta1):
         d = theta2 - theta1
         return (d + np.pi) % (2*np.pi) - np.pi
 
-    def getSiteVortex(self, coordinate):
+    def getSiteVortex(self, coordinate, inputGrid = None):
+
+        if inputGrid is None: lattice = self.grid
+        else: lattice = inputGrid
+    
         d = self.size
         lattice = self.grid * (np.pi / 180)  # convert to radians
 
@@ -144,10 +150,10 @@ class Lattice():
         t4 = lattice[yD, x]
 
         winding = (
-            self.angle_diff(t2, t1) +
-            self.angle_diff(t3, t2) +
-            self.angle_diff(t4, t3) +
-            self.angle_diff(t1, t4)
+            self.angleDiff(t2, t1) +
+            self.angleDiff(t3, t2) +
+            self.angleDiff(t4, t3) +
+            self.angleDiff(t1, t4)
         )
 
         return winding / (2 * np.pi)
@@ -162,7 +168,7 @@ class Lattice():
         for y in range(0, self.size):
             for x in range(0,self.size):
 
-                v = self.getSiteVortex(coordinate=(x,y), inputGrid=lattice)
+                v = self.getSiteVortex(coordinate=[x,y], inputGrid=lattice)
                 
                 if v > 0.5:
                     gridVortex[y,x] = +1   # vortex
@@ -189,6 +195,7 @@ class Lattice():
         
         self.step = 0
         self.NumberFrames = []
+        self.VortexNumberFrames = []
 
         for n in range(0,steps):
             self.step += 1
@@ -198,49 +205,62 @@ class Lattice():
                 coordinate = [int(np.random.randint(0,self.size)), int(np.random.randint(0,self.size))]
                 self.applySingleFlipProbability(coordinate=coordinate)
             
+
             self.step += 1
-            self.betaTemp += 0.01
-            self.vortexDensity.append(self.getFullVortexDensity())
+            self.betaTemp *= 1.001
             self.betaTempTime.append(self.betaTemp)
+            self.vortexDensity.append( np.sum(np.abs(self.getAllSitesVortex())) / (2 * (self.size**2)) )
 
             print(f"Running Simulation: 100.00 %", end="\r")
             self.NumberFrames.append(self.grid.copy())
-
+            self.VortexNumberFrames.append(self.getAllSitesVortex().copy())
+        
     def createImage(self, frame):
         plt.xticks([])
         plt.yticks([])
         im = plt.imshow(self.NumberFrames[frame], cmap="hsv", animated=True)
-        txt = plt.text(-0.5, -0.9, f"β = {np.round(self.betaTempTime[frame],6):.6f}\nstep = {frame}")
+        txt = plt.text(-0.5, -0.9, f"β = {np.round(self.betaTempTime[frame],4):.4f}\nstep = {frame}")
         return [im,txt]
 
-    def createAnimation(self, fileName, steps):
+    def createVortexImage(self, frame):
+        plt.xticks([])
+        plt.yticks([])
+        im = plt.imshow(self.VortexNumberFrames[frame], cmap="bwr", animated=True)
+        txt = plt.text(-0.5, -0.9, f"β = {np.round(self.betaTempTime[frame],4):.4f}\nstep = {frame}")
+        return [im,txt]
+
+    def createAnimation(self, fileName, aniType):
         
         fig, ax = plt.subplots()
         ax.set_xticks([])
         ax.set_yticks([])
 
         self.Animationframes = []
-        self.runSimulation(steps=steps)
-    
+        steps = len(self.NumberFrames)
+
         print()
         for frame in range(0,steps):
-            print(f"Rendering Frames: {np.round(100*frame/steps,2):.2f} %", end="\r")
-            self.Animationframes.append(self.createImage(frame).copy())
+            print(f"{fileName} Rendering Frames: {np.round(100*frame/steps,2):.2f} %", end="\r")
+            if aniType == "phase":
+                self.Animationframes.append(self.createImage(frame).copy())
+            elif aniType == "vortex":
+                self.Animationframes.append(self.createVortexImage(frame).copy())
 
-        
-        print(f"Rendering Frames: 100.00 %", end="\r")
+        print(f"{fileName} Rendering Frames: 100.00 %", end="\r")
         print()
         print("Creating animation...")
         ani = animation.ArtistAnimation(fig, self.Animationframes, interval=60, blit=True, repeat_delay=1000)
-        ani.save(f"videos/{fileName}.mp4", writer = "ffmpeg", fps = 30)
+        ani.save(f"videos/{fileName}.mp4", writer = "ffmpeg", fps = 24)
         print("Done.")
 
     def saveObservables(self, fileName):
         a = np.array([self.betaTempTime, self.vortexDensity])
         np.savetxt(f"data/{fileName}.csv", a, delimiter=",")
 
-if __name__ == "__main__":
-    sim = Lattice(size=50, betaTemp=5, couplingConstant=1, gridInit="random")
-    sim.createAnimation("Best", steps=1000)
-    sim.saveObservables("Best")
 
+if __name__ == "__main__":
+    sim = Lattice(size=100, betaTemp=0.08, couplingConstant=1, gridInit="random")
+    sim.runSimulation(steps=1000)
+    sim.saveObservables("testThis")
+    # sim.createAnimation(fileName="testThis", aniType="phase")
+    # sim.createAnimation(fileName="testThisVortex", aniType="vortex")

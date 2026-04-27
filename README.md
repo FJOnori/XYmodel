@@ -6,6 +6,7 @@ single angle that describes the orientation of the vector (Sx, Sy). Study the be
 dimensions by considering the high, and low temperature expansions. In the low temperature phase, the
 fluctuations of the angles define the vorticity of the configuration. Study the contribution of the vortices to
 the free energy of the system, and deduce an estimate of the critical temperature.
+
 Introduce the Villain action for the XY model, and discuss the RG flow for this theory
 
 
