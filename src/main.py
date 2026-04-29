@@ -14,10 +14,13 @@ class Lattice():
         self.step             = 0
 
         if gridInit == "random":
-            self.grid = np.array( [[float(np.random.randint(0,359)) for _ in range(0, self.size)] for _ in range(0,self.size)] )
+            self.grid = np.array( [[float(np.random.randint(0,359)) \
+                                   for _ in range(0, self.size)] \
+                                   for _ in range(0,self.size)] )
         elif gridInit == "uniform":
             angle = float(np.random.randint(0,359))
-            self.grid = np.array( [[ angle for _ in range(0, self.size)] for _ in range(0,self.size)] )
+            self.grid = np.array( [[ angle for _ in range(0, self.size)] \
+                                   for _ in range(0,self.size)] )
 
         self.VortexNumberFrames    = []
         self.VortexAnimationFrames = []
@@ -26,6 +29,7 @@ class Lattice():
         self.FreeEnergy            = []
         self.betaTempTime          = []
         self.vortexDensity         = []
+        self.vortexNetDensity      = []
     
     def getSiteKernel(self, coordinate, inputGrid=None):
         
@@ -207,9 +211,10 @@ class Lattice():
             
 
             self.step += 1
-            self.betaTemp *= 1.001
+            # self.betaTemp += 0.0005
             self.betaTempTime.append(self.betaTemp)
             self.vortexDensity.append( np.sum(np.abs(self.getAllSitesVortex())) / (2 * (self.size**2)) )
+            self.vortexNetDensity.append(np.sum(self.getAllSitesVortex()))
 
             print(f"Running Simulation: 100.00 %", end="\r")
             self.NumberFrames.append(self.grid.copy())
@@ -254,13 +259,13 @@ class Lattice():
         print("Done.")
 
     def saveObservables(self, fileName):
-        a = np.array([self.betaTempTime, self.vortexDensity])
+        a = np.array([self.betaTempTime, self.vortexDensity, self.vortexNetDensity])
         np.savetxt(f"data/{fileName}.csv", a, delimiter=",")
 
 
 if __name__ == "__main__":
-    sim = Lattice(size=100, betaTemp=0.08, couplingConstant=1, gridInit="random")
+    sim = Lattice(size=50, betaTemp=1/0.893, couplingConstant=1, gridInit="random")
     sim.runSimulation(steps=1000)
-    sim.saveObservables("testThis")
-    # sim.createAnimation(fileName="testThis", aniType="phase")
-    # sim.createAnimation(fileName="testThisVortex", aniType="vortex")
+    sim.saveObservables("crit50")
+    sim.createAnimation(fileName="crit50", aniType="phase")
+    sim.createAnimation(fileName="crit50Vortex", aniType="vortex")
